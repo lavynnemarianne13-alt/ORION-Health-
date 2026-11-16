@@ -436,7 +436,36 @@ Where:
 - \(L\) represents the length of the body segment in pixels.
 
 The documentation considers illustrative segment lengths between 250 and 350 pixels and localization errors between two and five pixels.
+## <span style="color:#2B6CB0">5. Desenvolvedores e Colaboradores</span>
 
+O desenvolvimento técnico deste MVP foi realizado de forma colaborativa pela equipe de acadêmicos do projeto.
+
+<table align="center">
+  <tr>
+    <td align="center" width="180px">
+      <a href="https://github.com/Renataoliver-dev">
+        <img src="https://img.shields.io/badge/RO-Renata_Oliver-1A365D?style=for-the-badge&logo=github" alt="Renata Badge"><br><br>
+        <sub><b>@Renataoliver-dev</b></sub>
+      </a>
+    </td>
+    <td align="center" width="180px">
+      <a href="https://github.com/SuyouHenry">
+        <img src="https://img.shields.io/badge/HE-Henry-00562C?style=for-the-badge&logo=github" alt="Henry Badge"><br><br>
+    <sub><b>@SuyouHenry</b></sub>
+    </a>
+   </td>
+      </a>
+    </td>
+    <td align="center" width="180px">
+      <a href="https://github.com/snmaccall">
+        <img src="https://img.shields.io/badge/SM-snmaccall-C05621?style=for-the-badge&logo=github" alt="Colega Badge"><br><br>
+        <sub><b>@snmaccall</b></sub>
+      </a>
+    </td>
+  </tr>
+</table>
+
+<br>
 Under these assumptions, the approximation produces relatively small angular deviations.
 
 However, this relationship is a simplified estimate.
@@ -487,7 +516,94 @@ The project's monitoring concept includes detecting atypical heart rate changes 
 
 This information is intended to complement the camera-based analysis.
 
-While ORION evaluates how an exercise is performed, the wearable device provides information about the user's physiological response.
+While ORION evaluates how an exercise is performed, the wearable device provides information ## <span style="color:#2B6CB0">5. Desenvolvedores e Colaboradores</span>
+
+O desenvolvimento técnico deste MVP foi realizado de forma colaborativa pela equipe de acadêmicos do projeto.
+
+<table align="center">
+  <tr>
+    <td align="center" width="180px">
+      <a href="https://github.com/Renataoliver-dev">
+        <img src="https://img.shields.io/badge/RO-Renata_Oliver-1A365D?style=for-the-badge&logo=github" alt="Renata Badge"><br><br>
+        <sub><b>@Renataoliver-dev</b></sub>
+      </a>
+    </td>
+    <td align="center" width="180px">
+      <a href="https://github.com/SuyouHenry">
+        <img src="https://img.shields.io/badge/HE-Henry-00562C?style=for-the-badge&logo=github" alt="Henry Badge"><br><br>
+    <sub><b>@SuyouHenry</b></sub>
+    </a>
+   </td>
+      </a>
+    </td>
+    <td align="center" width="180px">
+      <a href="https://github.com/snmaccall">
+        <img src="https://img.shields.io/badge/SM-snmaccall-C05621?style=for-the-badge&logo=github" alt="Colega Badge"><br><br>
+        <sub><b>@snmaccall</b></sub>
+      </a>
+    </td>
+  </tr>
+</table>
+
+<br>## <span style="color:#2B6CB0">5. Desenvolvedores e Colaboradores</span>
+
+O desenvolvimento técnico deste MVP foi realizado de forma colaborativa pela equipe de acadêmicos do projeto.
+## <span style="color:#2B6CB0">5. Desenvolvedores e Colaboradores</span>
+
+O desenvolvimento técnico deste MVP foi realizado de forma colaborativa pela equipe de acadêmicos do projeto.
+
+<table align="center">
+  <tr>
+    <td align="center" width="180px">
+      <a href="https://github.com/Renataoliver-dev">
+        <img src="https://img.shields.io/badge/RO-Renata_Oliver-1A365D?style=for-the-badge&logo=github" alt="Renata Badge"><br><br>
+        <sub><b>@Renataoliver-dev</b></sub>
+      </a>
+    </td>
+    <td align="center" width="180px">
+      <a href="https://github.com/SuyouHenry">
+        <img src="https://img.shields.io/badge/HE-Henry-00562C?style=for-the-badge&logo=github" alt="Henry Badge"><br><br>
+    <sub><b>@SuyouHenry</b></sub>
+    </a>
+   </td>
+      </a>
+    </td>
+    <td align="center" width="180px">
+      <a href="https://github.com/snmaccall">
+        <img src="https://img.shields.io/badge/SM-snmaccall-C05621?style=for-the-badge&logo=github" alt="Colega Badge"><br><br>
+        <sub><b>@snmaccall</b></sub>
+      </a>
+    </td>
+  </tr>
+</table>
+
+<br>
+<table align="center">
+  <tr>
+    <td align="center" width="180px">
+      <a href="https://github.com/Renataoliver-dev">
+        <img src="https://img.shields.io/badge/RO-Renata_Oliver-1A365D?style=for-the-badge&logo=github" alt="Renata Badge"><br><br>
+        <sub><b>@Renataoliver-dev</b></sub>
+      </a>
+    </td>
+    <td align="center" width="180px">
+      <a href="https://github.com/SuyouHenry">
+        <img src="https://img.shields.io/badge/HE-Henry-00562C?style=for-the-badge&logo=github" alt="Henry Badge"><br><br>
+    <sub><b>@SuyouHenry</b></sub>
+    </a>
+   </td>
+      </a>
+    </td>
+    <td align="center" width="180px">
+      <a href="https://github.com/snmaccall">
+        <img src="https://img.shields.io/badge/SM-snmaccall-C05621?style=for-the-badge&logo=github" alt="Colega Badge"><br><br>
+        <sub><b>@snmaccall</b></sub>
+      </a>
+    </td>
+  </tr>
+</table>
+
+<br>about the user's physiological response.
 
 A data visualization dashboard is also part of the proposed architecture.
 
@@ -669,3 +785,5 @@ Although additional validation is required before operational or clinical use, O
 ---
 
 **Developed for the NASA International Space Apps Challenge 2026.**
+
+
