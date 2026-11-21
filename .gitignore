@@ -1,0 +1,14 @@
+/.agents/
+/.aws/
+/.codex/
+**/.env
+**/.env.*
+!**/.env.example
+**/.watch-token
+**/node_modules/
+**/.venv*/
+**/__pycache__/
+**/.runtime/
+**/.pipcache/
+**/*.sqlite*
+**/*.db*

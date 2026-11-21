@@ -1,0 +1,14 @@
+{
+  "source": 1,
+  "weights": "models/best_space_pose.pt",
+  "size": "1280x720",
+  "fullscreen": true,
+  "mode": "hybrid",
+  "mp_complexity": 2,
+  "conf": 0.4,
+  "stand_knee_angle": 160.0,
+  "bottom_knee_ok": 105.0,
+  "bottom_knee_min": 100.0,
+  "max_torso_lean": 45.0,
+  "max_knee_asymmetry": 15.0
+}

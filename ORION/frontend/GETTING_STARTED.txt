@@ -1,0 +1,10 @@
+ORION — FRONTEND SETUP
+
+Start the FastAPI backend on port 8000 in one terminal. See the main README.md for setup and dataset configuration.
+
+Run these commands from the frontend folder in a second terminal:
+
+  npm ci
+  npm run dev
+
+Open the address printed by Vite.
