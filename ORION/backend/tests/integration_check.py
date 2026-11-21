@@ -52,6 +52,7 @@ def check(base, dataset, image_path):
     assert pose["keypoints"] == 15
     assert pose["landmarks_version"].startswith("orion-yolo-pose-15-")
     mp = request("/api/v1/pose/mediapipe")
+    assert mp["model"] in {"pose-landmarker-full", "pose-landmarker-heavy"}
     assert mp["keypoints"] == 33 and len(request(mp["asset"])) > 1_000_000
 
     def jpeg(image):
@@ -64,15 +65,22 @@ def check(base, dataset, image_path):
     request(route, raw=b"bad", content_type="image/jpeg", status=422)
     request(route, raw=b"x" * (512 * 1024 + 1), content_type="image/jpeg", status=413)
     request(route, raw=b"bad", status=415)
-    assert not request(route, raw=jpeg(Image.new("RGB", (640, 480))), content_type="image/jpeg")["keypoints"]
+    blank = jpeg(Image.new("RGB", (640, 480)))
+    assert request(route, raw=blank, content_type="image/jpeg") == {"detection": None, "keypoints": []}
+    gradient = jpeg(Image.linear_gradient("L").resize((640, 480)))
+    assert request(route, raw=gradient, content_type="image/jpeg") == {"detection": None, "keypoints": []}
     if image_path is None:
         image_path = next(iter(sorted((dataset / "valid" / "images").glob("*.jpg"))), None)
         if image_path is None:
             raise RuntimeError("Set --image to a valid ORION validation image.")
     with Image.open(image_path) as image:
-        points = request(route, raw=jpeg(image), content_type="image/jpeg")["keypoints"]
+        prediction = request(route, raw=jpeg(image), content_type="image/jpeg")
+    points = prediction["keypoints"]
+    detection = prediction["detection"]
+    assert detection["class"] == "lifter" and 0.4 <= detection["confidence"] <= 1
+    assert len(detection["box"]) == 4 and all(0 <= coordinate <= 1 for coordinate in detection["box"])
     assert len(points) == 15 and all(0 <= point["visibility"] <= 1 for point in points)
-    print(f"Real YOLO inference on {pose['device']}: 15 keypoints; MediaPipe Full asset served.")
+    print(f"Real YOLO inference on {pose['device']}: 15 keypoints; MediaPipe {mp['model']} asset served.")
 
     athlete = request("/api/v1/athletes", payload={"pseudonym": "Integration Test"}, status=201)
     creation = {"athlete_id": athlete["id"], "exercise_code": "curl", "protocol_id": "CURL-01",

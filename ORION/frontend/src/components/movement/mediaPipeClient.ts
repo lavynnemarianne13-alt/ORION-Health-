@@ -11,9 +11,9 @@ export async function createMediaPipeDetector(): Promise<PoseDetector> {
   let modelAssetPath = LITE_MODEL;
   let variant = 'lite';
   try {
-    const model = await apiRequest<{ asset: `/${string}` }>('/api/v1/pose/mediapipe');
+    const model = await apiRequest<{ asset: `/${string}`; model: string }>('/api/v1/pose/mediapipe');
     modelAssetPath = absolute(apiUrl(model.asset));
-    variant = 'full';
+    variant = model.model === 'pose-landmarker-heavy' ? 'heavy' : 'full';
   } catch {
     // Standalone browser tracking can still load the official Lite model.
   }

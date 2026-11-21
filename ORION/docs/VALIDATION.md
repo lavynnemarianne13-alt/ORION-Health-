@@ -69,3 +69,18 @@ O candidato padrão é o checkpoint `squat_finetune/weights/best.pt`. Entre as v
 - Automação e documentação em `setup.sh`, `start.sh`, `stop.sh`, `scripts/`, `.env.example`, `.gitignore`, `README.md` e `docs/`.
 
 O núcleo Python usa requisitos fixados e o frontend usa `package-lock.json`. O manifesto opcional de YOLO fixa as bibliotecas principais. A resolução completa das dependências transitivas de visão em Linux e CUDA ainda precisa ser validada no ambiente que executar a inferência.
+
+## Validação de visão no workspace oficial
+
+Em 21 de novembro de 2026, o checkpoint `squat_finetune/weights/best.pt` foi executado em Zorin OS 18 com Ultralytics 8.4.213, PyTorch 2.15.0 e Torchvision 0.29.2. O teste HTTP `backend/tests/integration_check.py` confirmou a classe `lifter`, caixa normalizada, 15 pontos, respostas vazias para quadros sem pose e o ciclo de sessão em um SQLite temporário. Passou em CPU e em `cuda:0`, com as wheels `cu132` no ambiente de teste, uma RTX 3050 Laptop de 6 GB e driver 580.178.04.
+
+Após aquecimento, foram feitas 20 chamadas ao processamento de quadros com as cinco imagens da validação, quatro por imagem. Todas retornaram 15 pontos. O tempo medido inclui decodificação JPEG e inferência, sem HTTP.
+
+| Dispositivo | Mediana | Máximo |
+| --- | ---: | ---: |
+| Intel Core i5-13420H | 55,4 ms | 58,5 ms |
+| NVIDIA RTX 3050 Laptop | 12,6 ms | 13,6 ms |
+
+O Brave abriu a webcam física em 640×480 a 30 FPS. MediaPipe Full e Heavy detectaram pontos corporais visíveis em ensaios curtos. Com Full e comparação YOLO em CPU, o painel processou 25 respostas YOLO em cerca de cinco segundos, sem detecção YOLO nesse enquadramento. Em um fluxo de teste que repetia uma imagem do dataset, Full e Heavy detectaram pontos visíveis, e o YOLO retornou 15 pontos em todas as chamadas nos dois ensaios. O Heavy foi selecionado com `ORION_MEDIAPIPE_MODEL=fitness_pose/models/mediapipe/pose_landmarker_heavy.task` e identificado como **MEDIAPIPE HEAVY** no painel.
+
+As medições descrevem ensaios locais curtos com um conjunto pequeno. A contagem de repetições e o registro de séries durante um exercício real, a detecção YOLO pela webcam e a estabilidade em uso prolongado seguem pendentes.

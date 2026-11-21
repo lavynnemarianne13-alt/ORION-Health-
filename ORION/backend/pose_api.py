@@ -87,8 +87,9 @@ def pose_availability():
 
 @router.get("/mediapipe")
 def mediapipe_status():
-    mediapipe_path()
-    return {"model": "pose-landmarker-full", "keypoints": 33, "asset": "/api/v1/pose/mediapipe/asset"}
+    path = mediapipe_path()
+    variant = "heavy" if path.name == "pose_landmarker_heavy.task" else "full"
+    return {"model": f"pose-landmarker-{variant}", "keypoints": 33, "asset": "/api/v1/pose/mediapipe/asset"}
 
 
 @router.get("/mediapipe/asset")
@@ -111,11 +112,7 @@ def predict_frame(frame: bytes):
         raise HTTPException(422, "Send a valid JPEG frame.") from error
 
     if all(low == high for low, high in rgb.getextrema()):
-        detection = {
-        "class": "lifter", "confidence": float(result.boxes.conf[0]),
-        "box": result.boxes.xyxyn[0].cpu().tolist(),
-    }
-    return {"detection": detection, "keypoints": [], "detection": None}
+        return {"detection": None, "keypoints": []}
 
     with model_lock:
         model, device, _ = load_model()
@@ -126,11 +123,7 @@ def predict_frame(frame: bytes):
             raise HTTPException(503, "YOLO-Pose could not process the frame.") from error
 
     if result.keypoints is None or len(result.keypoints) == 0:
-        detection = {
-        "class": "lifter", "confidence": float(result.boxes.conf[0]),
-        "box": result.boxes.xyxyn[0].cpu().tolist(),
-    }
-    return {"detection": detection, "keypoints": [], "detection": None}
+        return {"detection": None, "keypoints": []}
 
     coordinates = result.keypoints.xyn[0].cpu().tolist()
     confidence = result.keypoints.conf[0].cpu().tolist()

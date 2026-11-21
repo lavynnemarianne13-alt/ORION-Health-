@@ -118,7 +118,7 @@ export default function MovementStudio({ athlete, backendReady, sessions, onSess
       if (token !== loadingTokenRef.current || !streamRef.current || !videoRef.current) { detector.close(); return; }
       poseDetectorRef.current = detector;
       setActiveModel(poseSource === 'orion' ? 'ORION YOLO-POSE'
-        : detector.landmarksVersion.includes('-full-') ? 'MEDIAPIPE FULL' : 'MEDIAPIPE LITE');
+        : `MEDIAPIPE ${detector.landmarksVersion.split('-')[2].toUpperCase()}`);
       if (poseSource === 'mediapipe' && compareYolo) {
         void createOrionPoseDetector().then(secondary => {
           if (token !== loadingTokenRef.current) { secondary.close(); return; }
