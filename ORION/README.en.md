@@ -62,7 +62,7 @@ In the private `.env` file, set `ORION_AI_ENABLED=1` and configure `GEMINI_API_K
 
 For YOLO, set `ORION_ENABLE_YOLO=1` and run `bash setup.sh` again. The default checkpoint is `fitness_pose/runs/pose/squat_finetune/weights/best.pt`. `ORION_POSE_WEIGHTS` overrides the checkpoint. Use `ORION_POSE_DEVICE=cpu` or set `auto` to try CUDA with CPU fallback. CUDA requires a suitable PyTorch wheel index and a working NVIDIA driver.
 
-MediaPipe uses the team's Full task file through the API when available and can load the official Lite task otherwise. The browser loads the pinned Tasks Vision 0.10.21 runtime on demand. For offline runtime files, place `vision_bundle.mjs` and `wasm/` in `frontend/public/mediapipe-runtime/` and set `VITE_MEDIAPIPE_RUNTIME=/mediapipe-runtime`. Select **MediaPipe** and enable **Compare YOLO overlay** to display both engines from the same camera. The selected primary engine supplies the session measurements. [MediaPipe Pose Landmarker for web](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker/web_js)
+MediaPipe uses the team's Full task file by default and falls back to the official Lite model if the backend is unavailable or has no local model. To test Heavy, set `ORION_MEDIAPIPE_MODEL=fitness_pose/models/mediapipe/pose_landmarker_heavy.task` in `.env` and restart ORION. The panel identifies the active model as **MEDIAPIPE FULL**, **MEDIAPIPE HEAVY**, or **MEDIAPIPE LITE**. The browser loads the pinned Tasks Vision 0.10.21 runtime on demand. For offline runtime files, place `vision_bundle.mjs` and `wasm/` in `frontend/public/mediapipe-runtime/` and set `VITE_MEDIAPIPE_RUNTIME=/mediapipe-runtime`. Select **MediaPipe** and enable **Compare YOLO overlay** to display both engines from the same camera. The selected primary engine supplies the session measurements. [MediaPipe Pose Landmarker for web](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker/web_js)
 
 ### Audit or prepare a training copy
 
@@ -130,7 +130,9 @@ With the dataset and YOLO runtime installed, and local sockets available, run in
 )
 ```
 
-Add `--image "/path/to/validation-image.jpg"` to select a validation image. Expect YOLO to return 15 keypoints, the API to serve the MediaPipe Full asset, and exercise session persistence checks to pass. Test real camera, MediaPipe execution, and the watch through the dashboard. [Observed test results and remaining checks](docs/VALIDATION.md)
+The test uses an image from the local validation split. It checks the YOLO `lifter` class, the normalized bounding box, all 15 keypoints, the empty response for frames without a pose, delivery of the configured MediaPipe model, and session persistence in a temporary SQLite database. Add `--image "/path/to/validation-image.jpg"` to select another image.
+
+YOLO was validated on dataset images in CPU mode and on an RTX 3050 Laptop GPU. MediaPipe Full and Heavy detected body landmarks from the physical webcam in short trials. YOLO detection from the webcam, repetition counting, and saving a set during a real exercise still need validation. Use the manual **Movement** scenario to run the pending checks. [Observed test results and remaining checks](docs/VALIDATION.md)
 
 ## Storage and troubleshooting
 
