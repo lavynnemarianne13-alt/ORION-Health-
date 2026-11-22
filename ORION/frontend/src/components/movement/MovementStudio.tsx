@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { Card } from '../ui/Surfaces';
 import { backendApi } from '../../services/backendApi';
 import type { AssessmentReport, Athlete, ExerciseSession, MotionSample, PoseEngine, SavedPlan, SessionCreated } from '../../types/backend';
 import { createMediaPipeDetector } from './mediaPipeClient';
@@ -20,9 +22,11 @@ type Props = {
   backendReady: boolean;
   sessions: ExerciseSession[];
   onSessionChanged: () => void;
+  onCrewLock: (locked: boolean) => void;
+  sidebar: ReactNode;
   recordings: Map<string, MovementRecording>;
 };
-export default function MovementStudio({ athlete, backendReady, sessions, onSessionChanged, recordings, reviewedPlans }: Props) {
+export default function MovementStudio({ athlete, backendReady, sessions, onSessionChanged, recordings, reviewedPlans, onCrewLock, sidebar }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const secondaryOverlayRef = useRef<HTMLCanvasElement>(null);
@@ -41,6 +45,7 @@ export default function MovementStudio({ athlete, backendReady, sessions, onSess
   const [counterSnapshot, setCounterSnapshot] = useState<CounterSnapshot | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
+  const [cameraPending, setCameraPending] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [poseStatus, setPoseStatus] = useState<'idle' | 'loading' | 'running'>('idle');
   const [poseSource, setPoseSource] = useState<PoseEngine>('orion');
@@ -64,6 +69,8 @@ export default function MovementStudio({ athlete, backendReady, sessions, onSess
   const [serverMessage, setServerMessage] = useState('');
   const [sampleFile, setSampleFile] = useState<File | null>(null);
   const [sampleCount, setSampleCount] = useState<number | null>(null);
+
+  useEffect(() => { onCrewLock(!!currentSession || serverBusy || cameraOn || cameraPending || running); }, [currentSession, serverBusy, cameraOn, cameraPending, running, onCrewLock]);
 
   useEffect(() => {
     if (!running) return;
@@ -206,12 +213,17 @@ export default function MovementStudio({ athlete, backendReady, sessions, onSess
   const turnCameraOn = async () => {
     setCameraError('');
     if (!navigator.mediaDevices?.getUserMedia) { setCameraError('Camera requires localhost or HTTPS.'); return; }
+    setCameraPending(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'user' } });
+      const video = videoRef.current;
+      if (!video) { stream.getTracks().forEach(track => track.stop()); return; }
       streamRef.current = stream;
-      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
+      video.srcObject = stream;
+      await video.play();
       setCameraOn(true);
     } catch { turnCameraOff(); setCameraError('Camera unavailable. Check permissions.'); }
+    finally { setCameraPending(false); }
   };
   const toggleTimer = () => {
     if (running) {
@@ -330,7 +342,8 @@ export default function MovementStudio({ athlete, backendReady, sessions, onSess
     setCompletedSets([...recording.sets]);
   }
 
-  return <div className="movement-studio">
+  return <div className="grid movement-layout">
+    <Card title="Motion workspace" className="movement-main">
     <div className="ms-toolbar">
       <label className="ms-field" htmlFor="movement-exercise"><span>EXERCISE</span><select id="movement-exercise" value={exercise} disabled={!!currentSession || serverBusy} onChange={e => chooseExercise(e.target.value as ExerciseCode)}>{exerciseOptions.map(e => <option value={e.value} key={e.value}>{e.label}</option>)}</select></label>
       {exercise !== 'squat' && supportsExerciseCounting(exercise) && <label className="ms-field ms-field--side" htmlFor="movement-side"><span>TRACKED SIDE</span><select id="movement-side" value={exerciseSide} disabled={!!currentSession || serverBusy} onChange={e => chooseSide(e.target.value as ExerciseSide)}><option value="left">Left</option><option value="right">Right</option></select></label>}
@@ -347,26 +360,11 @@ export default function MovementStudio({ athlete, backendReady, sessions, onSess
         <option value="mediapipe">MediaPipe</option>
       </select></label>
       {poseSource === 'mediapipe' && <label><input type="checkbox" checked={compareYolo} disabled={poseStatus !== 'idle'} onChange={event => setCompareYolo(event.target.checked)}/> Compare YOLO overlay</label>}
-      <button className={cameraOn ? 'ms-button ms-button--outline' : 'ms-button ms-button--primary'} type="button" onClick={cameraOn ? turnCameraOff : turnCameraOn}>{cameraOn ? 'Turn off camera' : 'Enable camera'}</button><button className={poseStatus === 'running' ? 'ms-button ms-button--outline' : 'ms-button ms-button--primary'} type="button" disabled={!cameraOn || poseStatus === 'loading'} onClick={poseStatus === 'running' ? stopPoseTracking : startPoseTracking}>{poseStatus === 'loading' ? 'Loading model…' : poseStatus === 'running' ? 'Stop pose tracking' : 'Start pose tracking'}</button><div className="ms-timer-group"><span className="ms-time">{toClock(elapsed)}</span><button className="ms-button ms-button--outline" type="button" onClick={toggleTimer}>{running ? 'Pause local timer' : elapsed ? 'Resume local timer' : 'Start local timer'}</button><button className="ms-reset" type="button" onClick={resetTimer} disabled={!elapsed && !running}>Reset</button></div></div>
+      <button className={cameraOn ? 'ms-button ms-button--outline' : 'ms-button ms-button--primary'} type="button" disabled={cameraPending} onClick={cameraOn ? turnCameraOff : turnCameraOn}>{cameraPending ? 'Requesting camera…' : cameraOn ? 'Turn off camera' : 'Enable camera'}</button><button className={poseStatus === 'running' ? 'ms-button ms-button--outline' : 'ms-button ms-button--primary'} type="button" disabled={!cameraOn || poseStatus === 'loading'} onClick={poseStatus === 'running' ? stopPoseTracking : startPoseTracking}>{poseStatus === 'loading' ? 'Loading model…' : poseStatus === 'running' ? 'Stop pose tracking' : 'Start pose tracking'}</button><div className="ms-timer-group"><span className="ms-time">{toClock(elapsed)}</span><button className="ms-button ms-button--outline" type="button" onClick={toggleTimer}>{running ? 'Pause local timer' : elapsed ? 'Resume local timer' : 'Start local timer'}</button><button className="ms-reset" type="button" onClick={resetTimer} disabled={!elapsed && !running}>Reset</button></div></div>
     {cameraError && <p className="ms-error" role="alert">{cameraError}</p>}
     {poseStatus === 'running' && comparison && <p role="status">{comparison}</p>}
     {poseError && <p className="ms-error" role="alert">{poseError}</p>}
     {poseStatus === 'running' && <p className="ms-pose-hint" role="status">{liveMetrics?.visiblePoints ? 'Tracking visible body landmarks.' : 'No reliable pose yet. Position your full body in view.'}</p>}
-    <section className="ms-squat-panel" aria-label="Experimental exercise repetition counter">
-      <div className="ms-squat-info">
-        <span className="ms-squat-label">MOVEMENT ASSESSMENT</span>
-        <strong>{!supportsExerciseCounting(exercise) ? 'COUNTER UNAVAILABLE' : poseStatus === 'running' ? (counterSnapshot?.phase ?? 'waiting').replaceAll('_', ' ').toUpperCase() : 'INACTIVE'}</strong>
-        <p aria-live="polite">{!supportsExerciseCounting(exercise) ? setupGuidance[exercise] : poseStatus !== 'running' ? 'Start the camera and pose tracking to count locally.' : counterSnapshot?.guidance ?? setupGuidance[exercise]}</p>
-        <small>{setupGuidance[exercise]} · Experimental 2D angles</small>
-      </div>
-      <div className="ms-squat-actions"><div className="ms-squat-reps"><span>VALID / ATTEMPTED</span><strong>{recordable ? `${report?.valid_repetitions ?? 0} / ${report?.repetitions ?? 0}` : '—'}</strong></div><button type="button" className="ms-button ms-button--outline" onClick={resetExerciseCounter} disabled={!supportsExerciseCounting(exercise) || !!currentSession || serverBusy}>Reset count</button></div>
-    </section>
-    <div className="ms-pose-hint" aria-live="polite">
-      {!recordable ? 'Assessment is unavailable for this exercise.' : report?.feedback.length ? report.feedback.map(code => <p key={code}>{feedbackText[code]}</p>)
-        : report?.repetitions ? 'Completed attempts meet the configured 2D rules.'
-        : 'Insufficient data for assessment. Complete a tracked attempt to see a result.'}
-      {report?.tracking_quality != null && <p>Trackable frames: {Math.round(report.tracking_quality * 100)}%</p>}
-    </div>
     <section className="ms-api-workspace" aria-label="Server exercise recording"><h3>Exercise recording</h3><p>Finish the session to save its movement assessment and sampled joint angles.</p>
       {!athlete && <p className="ms-api-info">Select or create a crew profile in Overview before recording a session.</p>}
       {!recordable && <p className="ms-api-info">Recording and assessment rules are unavailable for this exercise.</p>}
@@ -382,7 +380,33 @@ export default function MovementStudio({ athlete, backendReady, sessions, onSess
       <div className="ms-form-row"><label>LOAD (KG, OPTIONAL)<input inputMode="decimal" type="number" min="0" step="any" value={load} onChange={e => setLoad(e.target.value)} placeholder="No load"/></label><label>TARGET REPS (OPTIONAL)<input inputMode="numeric" type="number" min="1" step="1" value={target} onChange={e => setTarget(e.target.value)} placeholder="No target"/></label></div><button type="button" className="ms-button ms-button--primary" onClick={startSession} disabled={!athlete || !backendReady || !recordable || serverBusy}>Start server session</button>{openSessions.map(item => <button type="button" key={item.session_id} disabled={serverBusy} className="ms-button ms-button--outline" onClick={() => resumeSession(item)}>Resume {item.exercise_code} · {new Date(item.started_at_utc).toLocaleString()}</button>)}</>}
       {serverError && <p className="ms-error" role="alert">{serverError}</p>}{serverMessage && <p className="ms-api-info" role="status">{serverMessage}</p>}
     </section>
-    <div className="ms-metrics"><div><span>LEFT KNEE · 2D</span><strong>{liveMetrics?.leftKnee === null || liveMetrics?.leftKnee === undefined ? '—' : `${liveMetrics.leftKnee}°`}</strong><small>Camera projection</small></div><div><span>RIGHT KNEE · 2D</span><strong>{liveMetrics?.rightKnee === null || liveMetrics?.rightKnee === undefined ? '—' : `${liveMetrics.rightKnee}°`}</strong><small>Camera projection</small></div><div><span>LANDMARK VISIBILITY</span><strong>{liveMetrics?.averageVisibility == null ? '—' : `${Math.round(liveMetrics.averageVisibility * 100)}%`}</strong><small>Not clinical pose quality</small></div></div><div className="ms-secondary-metrics">Elbows (2D): left <strong>{liveMetrics?.leftElbow == null ? '—' : `${liveMetrics.leftElbow}°`}</strong> · right <strong>{liveMetrics?.rightElbow == null ? '—' : `${liveMetrics.rightElbow}°`}</strong></div>
     <p className="ms-note">Pose angles are experimental 2D camera projections, not validated clinical measurements. Orion YOLO-Pose sends frames to the configured ORION API for processing in memory. MediaPipe processes frames in the browser. The exercise rules use measured 2D movement for research feedback. Finished sessions store derived metrics and results.</p>
+    </Card>
+    <div className="grid movement-aside">
+      <Card title="Session metrics">
+        <dl className="service-list">
+          <div><dt>Exercise</dt><dd>{exerciseOptions.find(option => option.value === exercise)?.label}</dd></div>
+          <div><dt>Pose engine</dt><dd>{activeModel && poseStatus === 'running' ? activeModel : 'Tracking off'}</dd></div>
+          <div><dt>Sets recorded</dt><dd>{currentSession ? completedSets.length : '—'}</dd></div>
+        </dl>
+    <section className="ms-squat-panel" aria-label="Experimental exercise repetition counter">
+      <div className="ms-squat-info">
+        <span className="ms-squat-label">MOVEMENT ASSESSMENT</span>
+        <strong>{!supportsExerciseCounting(exercise) ? 'COUNTER UNAVAILABLE' : poseStatus === 'running' ? (counterSnapshot?.phase ?? 'waiting').replaceAll('_', ' ').toUpperCase() : 'INACTIVE'}</strong>
+        <p aria-live="polite">{!supportsExerciseCounting(exercise) ? setupGuidance[exercise] : poseStatus !== 'running' ? 'Start the camera and pose tracking to count locally.' : counterSnapshot?.guidance ?? setupGuidance[exercise]}</p>
+        <small>{setupGuidance[exercise]} · Experimental 2D angles</small>
+      </div>
+      <div className="ms-squat-actions"><div className="ms-squat-reps"><span>VALID / ATTEMPTED</span><strong>{recordable ? `${report?.valid_repetitions ?? 0} / ${report?.repetitions ?? 0}` : '—'}</strong></div><button type="button" className="ms-button ms-button--outline" onClick={resetExerciseCounter} disabled={!supportsExerciseCounting(exercise) || !!currentSession || serverBusy}>Reset count</button></div>
+    </section>
+    <div className="ms-pose-hint" aria-live="polite">
+      {!recordable ? 'Assessment is unavailable for this exercise.' : report?.feedback.length ? report.feedback.map(code => <p key={code}>{feedbackText[code]}</p>)
+        : report?.repetitions ? 'Completed attempts meet the configured 2D rules.'
+        : 'Insufficient data for assessment. Complete a tracked attempt to see a result.'}
+      {report?.tracking_quality != null && <p>Trackable frames: {Math.round(report.tracking_quality * 100)}%</p>}
+    </div>
+    <div className="ms-metrics"><div><span>LEFT KNEE · 2D</span><strong>{liveMetrics?.leftKnee === null || liveMetrics?.leftKnee === undefined ? '—' : `${liveMetrics.leftKnee}°`}</strong><small>Camera projection</small></div><div><span>RIGHT KNEE · 2D</span><strong>{liveMetrics?.rightKnee === null || liveMetrics?.rightKnee === undefined ? '—' : `${liveMetrics.rightKnee}°`}</strong><small>Camera projection</small></div><div><span>LANDMARK VISIBILITY</span><strong>{liveMetrics?.averageVisibility == null ? '—' : `${Math.round(liveMetrics.averageVisibility * 100)}%`}</strong><small>Not clinical pose quality</small></div></div><div className="ms-secondary-metrics">Elbows (2D): left <strong>{liveMetrics?.leftElbow == null ? '—' : `${liveMetrics.leftElbow}°`}</strong> · right <strong>{liveMetrics?.rightElbow == null ? '—' : `${liveMetrics.rightElbow}°`}</strong></div>
+      </Card>
+      {sidebar}
+    </div>
   </div>;
 }

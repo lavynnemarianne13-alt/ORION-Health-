@@ -1,4 +1,5 @@
-import type { KeyboardEvent } from 'react';
+import { useId } from 'react';
+import SegmentedControl from '../ui/SegmentedControl';
 
 export type BodyView = 'front' | 'back';
 
@@ -43,97 +44,110 @@ export const regions: BodyRegion[] = [
 // eslint-disable-next-line react-refresh/only-export-components
 export const findRegion = (id: RegionId): BodyRegion => regions.find(region => region.id === id)!;
 
-// Front and back views share the same anatomical region identifiers.
-// Anatomical right appears on the viewer’s left in the frontal view.
-const frontParts: { region: RegionId; d: string }[] = [
-  { region: 'head', d: 'M180 24 C157 24 145 45 148 74 C149 96 163 114 180 116 C197 114 211 96 212 74 C215 45 203 24 180 24 Z' },
-  { region: 'neck', d: 'M163 108 L197 108 L201 142 Q180 154 159 142 Z' },
-  { region: 'right_shoulder', d: 'M156 142 C135 135 114 142 102 159 C96 169 95 187 103 203 L128 207 L146 177 Z' },
-  { region: 'left_shoulder', d: 'M204 142 C225 135 246 142 258 159 C264 169 265 187 257 203 L232 207 L214 177 Z' },
-  { region: 'right_upper_arm', d: 'M103 202 L128 208 C125 238 116 269 108 290 L77 289 C80 251 87 220 103 202 Z' },
-  { region: 'left_upper_arm', d: 'M257 202 L232 208 C235 238 244 269 252 290 L283 289 C280 251 273 220 257 202 Z' },
-  { region: 'right_forearm', d: 'M77 289 L108 290 L97 358 C91 373 81 374 73 364 C69 359 72 347 73 337 Z' },
-  { region: 'left_forearm', d: 'M283 289 L252 290 L263 358 C269 373 279 374 287 364 C291 359 288 347 287 337 Z' },
-  { region: 'chest', d: 'M156 143 Q180 150 204 143 L215 176 L232 210 L227 243 Q180 260 133 243 L128 210 L145 176 Z' },
-  { region: 'abdomen', d: 'M134 244 Q180 263 226 244 C222 272 227 292 224 318 Q180 337 136 318 C133 291 138 271 134 244 Z' },
-  { region: 'pelvis', d: 'M136 320 Q180 339 224 320 L235 371 Q210 389 185 397 L175 397 Q150 389 125 371 Z' },
-  { region: 'right_thigh', d: 'M126 373 Q151 387 175 397 L173 476 Q169 500 158 508 L127 507 Q118 487 120 467 L118 409 Z' },
-  { region: 'left_thigh', d: 'M234 373 Q209 387 185 397 L187 476 Q191 500 202 508 L233 507 Q242 487 240 467 L242 409 Z' },
-  { region: 'right_knee', d: 'M127 508 Q143 517 158 509 L160 538 Q144 551 126 539 Z' },
-  { region: 'left_knee', d: 'M233 508 Q217 517 202 509 L200 538 Q216 551 234 539 Z' },
-  { region: 'right_calf', d: 'M126 541 Q143 554 160 540 L155 585 L149 612 L122 612 L119 583 Z' },
-  { region: 'left_calf', d: 'M234 541 Q217 554 200 540 L205 585 L211 612 L238 612 L241 583 Z' }
+type Muscle = {
+  d: string;
+  back?: string;
+  view?: BodyView;
+  region?: RegionId;
+  side?: 'shoulder' | 'upper_arm' | 'forearm' | 'thigh' | 'knee' | 'calf';
+  tone: string;
+};
+
+const muscles: Muscle[] = [
+  { d: 'M141 61L127 68L105 88L132 84L150 100L150 69Z', region: 'neck', tone: 'neutral' },
+  { d: 'M136 62Q132 80 148 95L145 72Z', region: 'neck', tone: 'light' },
+  { d: 'M105 88C88 86 73 95 68 115Q65 124 69 135Q82 126 95 112L113 93Z', side: 'shoulder', tone: 'lime' },
+  { d: 'M69 135Q79 130 88 116L98 110L93 130Q84 141 74 148Z', side: 'shoulder', tone: 'olive' },
+  { d: 'M113 93Q136 85 149 100L148 130Q137 148 113 142L94 129Z', view: 'front', region: 'chest', tone: 'lime' },
+  { d: 'M104 137L118 145L121 162L110 154Z', view: 'front', region: 'abdomen', tone: 'light' },
+  { d: 'M112 155L123 164L121 184L108 171Z', view: 'front', region: 'abdomen', tone: 'neutral' },
+  { d: 'M109 173L121 187L118 204L103 194Z', view: 'front', region: 'abdomen', tone: 'light' },
+  { d: 'M122 148Q133 141 147 147L148 166Q134 169 122 163Z', view: 'front', region: 'abdomen', tone: 'olive' },
+  { d: 'M123 166Q136 170 148 167L148 184Q136 188 123 181Z', view: 'front', region: 'abdomen', tone: 'lime' },
+  { d: 'M123 185Q135 190 148 185L148 202Q135 206 125 200Z', view: 'front', region: 'abdomen', tone: 'olive' },
+  { d: 'M126 204Q137 207 148 204L148 240Q137 235 128 220Z', view: 'front', region: 'abdomen', tone: 'lime' },
+  { d: 'M103 196Q114 209 126 209L140 246L116 254L101 227Z', view: 'front', region: 'pelvis', tone: 'neutral' },
+  { d: 'M113 93L149 98L148 144L125 126L96 125Z', view: 'back', region: 'upper_back', tone: 'light' },
+  { d: 'M98 129Q123 130 148 149L147 189Q126 182 112 159Z', view: 'back', region: 'upper_back', tone: 'olive' },
+  { d: 'M112 160Q128 177 148 190L148 222L121 204Z', view: 'back', region: 'lower_back', tone: 'lime' },
+  { d: 'M120 208L148 224L148 247L122 238Z', view: 'back', region: 'lower_back', tone: 'light' },
+  { d: 'M105 226Q128 218 147 246L145 268Q127 281 104 260Z', view: 'back', region: 'pelvis', tone: 'neutral' },
+  { d: 'M79 142Q91 129 97 138Q98 159 87 184L75 192Q68 171 79 142Z', back: 'M76 141Q88 129 96 139Q100 159 85 188L73 193Q65 170 76 141Z', side: 'upper_arm', tone: 'olive' },
+  { d: 'M69 138L78 141Q69 164 73 190L64 200Q58 175 69 138Z', side: 'upper_arm', tone: 'neutral' },
+  { d: 'M66 190L75 192L68 203L60 204Z', tone: 'light' },
+  { d: 'M60 205Q74 198 79 190Q79 222 59 252L50 247Q52 225 60 205Z', side: 'forearm', tone: 'lime' },
+  { d: 'M52 202Q57 195 63 205Q55 229 50 247L43 252Q43 226 52 202Z', side: 'forearm', tone: 'neutral' },
+  { d: 'M46 248L59 252L54 266L45 269L39 262Z', tone: 'light' },
+  { d: 'M39 264L49 269L46 283L37 292L32 288L27 302L23 301L28 283L19 293L16 290L26 275L20 279L17 276Z', tone: 'neutral' },
+  { d: 'M44 271L40 291M37 273L30 289M33 271L24 284', tone: 'line' },
+  { d: 'M104 247Q108 266 126 260L121 300Q117 329 123 351L110 344Q94 317 96 285Z', view: 'front', side: 'thigh', tone: 'lime' },
+  { d: 'M128 260L145 249L146 287L135 312L128 339Q119 314 124 291Z', view: 'front', side: 'thigh', tone: 'neutral' },
+  { d: 'M101 263Q108 289 116 315L126 347L118 352Q105 335 99 313Z', view: 'front', side: 'thigh', tone: 'olive' },
+  { d: 'M141 277L145 302L138 329L133 348L126 351Q130 327 132 307Z', view: 'front', side: 'thigh', tone: 'olive' },
+  { d: 'M101 263Q117 278 129 269L122 301Q113 330 116 349L107 341Q97 310 101 263Z', view: 'back', side: 'thigh', tone: 'olive' },
+  { d: 'M129 270L145 257L145 294Q143 321 131 350L122 349Q124 312 129 270Z', view: 'back', side: 'thigh', tone: 'lime' },
+  { d: 'M111 344Q124 357 132 345L139 355L134 371L118 373L108 359Z', side: 'knee', tone: 'neutral' },
+  { d: 'M109 367L121 375Q124 405 120 436L113 452Q101 426 101 402Q100 382 109 367Z', back: 'M109 367Q116 372 123 375L122 417Q111 435 111 450Q99 425 101 398Q101 379 109 367Z', side: 'calf', tone: 'olive' },
+  { d: 'M123 375L135 370Q142 397 136 420L124 454L118 454Q125 411 123 375Z', back: 'M124 375L135 367Q144 384 140 406Q137 428 124 449L118 453Q127 414 124 375Z', side: 'calf', tone: 'neutral' },
+  { d: 'M113 447L124 453L124 470L113 476L108 466Z', tone: 'light' },
+  { d: 'M108 466L113 477L124 470L128 482L122 489L103 488L101 482Z', tone: 'neutral' },
 ];
-const backParts: { region: RegionId; d: string }[] = [
-  ...frontParts.filter(part => ['head', 'neck', 'right_shoulder', 'left_shoulder', 'right_upper_arm', 'left_upper_arm', 'right_forearm', 'left_forearm', 'right_thigh', 'left_thigh', 'right_knee', 'left_knee', 'right_calf', 'left_calf'].includes(part.region)),
-  { region: 'upper_back', d: 'M156 143 Q180 150 204 143 L215 176 L232 210 L227 256 Q180 270 133 256 L128 210 L145 176 Z' },
-  { region: 'lower_back', d: 'M133 257 Q180 274 227 257 L224 318 Q180 337 136 318 Z' },
-  { region: 'pelvis', d: 'M136 320 Q180 339 224 320 L235 371 Q210 389 185 397 L175 397 Q150 389 125 371 Z' }
-];
+
+const outline = 'M150 12C130 12 120 25 121 42L123 53Q118 49 120 59L126 66L136 72L132 79L105 86Q77 84 67 111L62 145L55 182L46 203L38 249L31 261L16 276L15 293L23 303L33 305L48 290L58 268L83 204L96 148L105 194L99 228L94 286L100 326L108 354L100 391L103 428L111 461L99 480L102 490L126 491L130 481L129 465L138 424L145 373L146 310L150 271L154 310L155 373L162 424L171 465L170 481L174 491L198 490L201 480L189 461L197 428L200 391L192 354L200 326L206 286L201 228L195 194L204 148L217 204L242 268L252 290L267 305L277 303L285 293L284 276L269 261L262 249L254 203L245 182L238 145L233 111Q223 84 195 86L168 79L164 72L174 66L180 59Q182 49 177 53L179 42C180 25 170 12 150 12Z';
+const head = 'M150 15C131 15 125 28 126 44L128 60Q132 70 150 72Q168 70 172 60L174 44C175 28 169 15 150 15Z';
 
 interface BodyMapProps {
   selected: RegionId;
   onSelect: (id: RegionId) => void;
   view: BodyView;
   onViewChange: (view: BodyView) => void;
-  compact?: boolean;
 }
 
-export default function BodyMap({ selected, onSelect, view, onViewChange, compact = false }: BodyMapProps) {
-  const parts = view === 'front' ? frontParts : backParts;
-  const selectWithKeyboard = (event: KeyboardEvent<SVGPathElement>, region: RegionId) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onSelect(region);
-    }
-  };
-  return (
-    <div className={`body-atlas ${compact ? 'body-atlas--compact' : ''}`}>
-      <div className="atlas-toolbar">
-        <div className="atlas-tag"><span className="atlas-tag-dot"/> ANATOMICAL ATLAS</div>
-        <div className="atlas-view-switch" role="group" aria-label="Anatomical view">
-          <button type="button" aria-pressed={view === 'front'} className={view === 'front' ? 'is-active' : ''} onClick={() => onViewChange('front')}>Front</button>
-          <button type="button" aria-pressed={view === 'back'} className={view === 'back' ? 'is-active' : ''} onClick={() => onViewChange('back')}>Back</button>
-        </div>
-      </div>
-      <div className="atlas-canvas">
-        <span className="atlas-annotation atlas-annotation--top">HUMAN BODY · {view === 'front' ? 'ANTERIOR' : 'POSTERIOR'}</span>
-        <svg className="atlas-svg" viewBox="0 0 360 645" role="group" aria-label={`Human body, ${view === 'front' ? 'front view' : 'back view'}, with selectable regions`}>
-          <defs>
-            <pattern id="atlasGrid" width="26" height="26" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="0.65" fill="#b3b7bc" opacity=".33" />
-            </pattern>
-          </defs>
-          <rect x="0" y="0" width="360" height="645" fill="url(#atlasGrid)" />
-          <ellipse cx="180" cy="296" rx="144" ry="216" fill="none" stroke="#d4d8dc" strokeWidth="1" strokeDasharray="3 9" />
-          <path d="M180 10 V625 M20 318 H340" stroke="#dbdee2" strokeWidth="1" strokeDasharray="2 12" pointerEvents="none" />
-          {parts.map(part => {
-            const label = findRegion(part.region).name;
-            return (
-              <path
-                key={`${view}-${part.region}`}
-                d={part.d}
-                role="button"
-                tabIndex={0}
-                aria-label={`Select ${label}`}
-                aria-pressed={selected === part.region}
-                className={`atlas-region ${selected === part.region ? 'is-selected' : ''}`}
-                onClick={() => onSelect(part.region)}
-                onKeyDown={event => selectWithKeyboard(event, part.region)}
-              >
-                <title>{label}</title>
-              </path>
-            );
-          })}
-          <path className="atlas-anatomical-line" d="M180 154 V245 M159 186 Q180 198 201 186 M155 276 Q180 284 205 276 M180 338 V388" pointerEvents="none" />
-          {view === 'back' && <path className="atlas-anatomical-line" d="M180 160 V328 M147 225 Q180 242 213 225" pointerEvents="none" />}
-          <path className="atlas-foot" d="M122 611 L149 611 L152 629 Q137 637 111 632 Z M211 611 L238 611 L249 632 Q223 637 208 629 Z" pointerEvents="none" />
-        </svg>
-        <div className="atlas-edge-label atlas-edge-label--left">RIGHT</div>
-        <div className="atlas-edge-label atlas-edge-label--right">LEFT</div>
-        <span className="atlas-annotation atlas-annotation--bottom">SELECT A BODY REGION</span>
-      </div>
-      {!compact && <p className="atlas-footnote">Right and left refer to the subject’s anatomical sides. This atlas is for navigation, not diagnosis.</p>}
+export default function BodyMap({ selected, onSelect, view, onViewChange }: BodyMapProps) {
+  const id = useId();
+  const front = view === 'front';
+  const left = front ? 'right' : 'left';
+  const right = front ? 'left' : 'right';
+  const focusable = new Set<RegionId>();
+  function drawPart(d: string, tone: string, key: string | number, region?: RegionId) {
+    if (!region) return <path key={key} d={d} className={`atlas-fiber ${tone}`}/>;
+    const first = !focusable.has(region);
+    focusable.add(region);
+    return <path key={key} d={d} className={`atlas-fiber atlas-region ${tone} ${selected === region ? 'is-selected' : ''}`}
+      role={first ? 'button' : undefined} tabIndex={first ? 0 : undefined}
+      aria-label={first ? `Select ${findRegion(region).name}` : undefined} aria-pressed={first ? selected === region : undefined}
+      onClick={() => onSelect(region)} onKeyDown={event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect(region);
+        }
+      }}/>;
+  }
+  function half(side: 'left' | 'right') {
+    return muscles.map((muscle, index) => {
+      if (muscle.view && muscle.view !== view) return null;
+      const region = muscle.side ? `${side}_${muscle.side}` as RegionId : muscle.region;
+      return drawPart(!front && muscle.back ? muscle.back : muscle.d, muscle.tone, index, region);
+    });
+  }
+  return <div className="body-atlas">
+    <div className="surface-heading"><span className="caps">Crew anatomical map</span>
+      <SegmentedControl label="Anatomical view" options={[{ value: 'front', label: 'Front' }, { value: 'back', label: 'Back' }]} value={view} onChange={onViewChange}/>
     </div>
-  );
+    <svg className="atlas-svg" viewBox="0 0 300 510" role="group" aria-label={`Interactive ${view} muscular anatomy`}>
+      <defs>
+        <pattern id={`${id}-grid`} width="18" height="18" patternUnits="userSpaceOnUse"><path d="M18 0H0V18" stroke="#85858d" opacity=".13" fill="none" strokeWidth=".5"/></pattern>
+      </defs>
+      <rect x="1" y="1" width="298" height="508" rx="9" fill={`url(#${id}-grid)`}/>
+      <ellipse cx="150" cy="255" rx="140" ry="239" fill="none" stroke="#737c55" opacity=".23"/>
+      <path className="atlas-axis" d="M150 3V502M8 254H292"/>
+      <text x="12" y="19">{left[0].toUpperCase()}</text><text x="280" y="19">{right[0].toUpperCase()}</text>
+      <path className="atlas-outline" d={outline}/>
+      {half(left)}<g transform="translate(300 0) scale(-1 1)">{half(right)}</g>
+      {drawPart(head, 'light', 'head', 'head')}
+      {!front && <path className="atlas-fiber line" d="M150 77L150 231"/>}
+      <text x="150" y="506" textAnchor="middle" className="atlas-scale">ILLUSTRATIVE ANATOMY / NOT TO SCALE</text>
+    </svg>
+    <p className="atlas-footnote">{front ? 'Anterior' : 'Posterior'} view · Left and right refer to the crew member’s anatomical sides.</p>
+  </div>;
 }

@@ -27,9 +27,9 @@ Open [the ORION dashboard](http://127.0.0.1:5173/). The API listens on port 8000
 ## Use the dashboard
 
 1. In **Overview**, enter a pseudonym and click **Create profile**. Copy the **Profile ID** to reopen the profile using **Find profile**.
-2. In **Body Profile**, enter height and weight. For a fictional test, enter 5 ft, 10 in, and 165 lb. Circumferences in inches are optional. Click **Save local measurement**. SQLite stores values in centimeters and kilograms.
+2. In **Body Profile**, enter height and weight. For a fictional test, enter 5 ft, 10 in, and 165 lb. Circumferences in inches are optional. Click **Save measurement**. SQLite stores values in centimeters and kilograms.
 3. In **Body Atlas**, switch between **Front** and **Back** and select a region. A saved circumference appears for the corresponding region.
-4. In **History**, check measurements, workout drafts, exercise sessions, and wearable readings for the active profile. Use **Change profile** in **Overview** to switch crew members.
+4. In **History**, check measurements, workout drafts, exercise sessions, and wearable readings for the active profile. Use the header selector to switch between profiles already opened in this browser session. To look up another UUID or register a new profile, choose **Manage crew…** and then **Change profile** if a profile is active.
 
 ### Generate and review a workout
 

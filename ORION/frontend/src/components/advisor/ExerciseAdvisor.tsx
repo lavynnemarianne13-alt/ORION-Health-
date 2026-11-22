@@ -22,7 +22,7 @@ const equipmentOptions: { id: Equipment; label: string }[] = [
   { id: 'treadmill_harness', label: 'Treadmill with harness' },
 ];
 
-export default function ExerciseAdvisor({ measurement, athleteId }: { measurement: BodyMeasurement | null; athleteId: string }) {
+export default function ExerciseAdvisor({ measurement, athleteId, onDraftSaved }: { measurement: BodyMeasurement | null; athleteId: string; onDraftSaved: () => void }) {
   const [level, setLevel] = useState<TrainingLevel>('beginner');
   const [mission, setMission] = useState<MissionContext>('earth_training');
   const [availableDays, setAvailableDays] = useState(2);
@@ -66,6 +66,7 @@ export default function ExerciseAdvisor({ measurement, athleteId }: { measuremen
         }),
       });
       setResult(response);
+      if (response.status === 'draft_for_review') onDraftSaved();
     } catch (issue) {
       setError(issue instanceof Error ? issue.message : 'Unable to contact the AI advisor.');
     } finally { setLoading(false); }
@@ -73,14 +74,14 @@ export default function ExerciseAdvisor({ measurement, athleteId }: { measuremen
 
   return <section className="surface ea-card" aria-labelledby="advisor-heading">
     <div className="ea-header">
-      <div><span className="section-number">RESEARCH EXERCISE ADVISOR · EXTERNAL AI API</span>
-        <h2 id="advisor-heading">AI workout draft for professional review.</h2>
+      <div><span className="section-number">GOOGLE GEMINI</span>
+        <h2 id="advisor-heading">Draft configuration</h2>
         <p>Uses the latest body profile, training experience, available days and equipment to generate a proposed exercise sheet. Sets, repetitions and rest are research examples, not a medical prescription.</p>
       </div><span className="ea-pill">AI ASSISTED · NOT CLINICAL</span>
     </div>
-    {!measurement ? <p className="bp-placeholder">Save at least one height and weight measurement above before requesting exercise options.</p> : <>
+    {!measurement ? <p className="bp-placeholder">Save at least one height and weight measurement in Body Profile before requesting exercise options.</p> : <>
+      <div className="ea-workspace"><form onSubmit={submit} className="ea-form">
       <p className="ea-source">Profile snapshot: {formatUsHeight(measurement.heightCm)} · {formatUsWeight(measurement.weightKg)}{measurement.ageYears !== null ? ` · ${measurement.ageYears} years` : ''}. No crew identifier will be sent to the provider.</p>
-      <form onSubmit={submit} className="ea-form">
         <div className="ea-field-grid">
           <label className="ea-field"><span>Training experience</span>
             <select value={level} onChange={e => { setLevel(e.target.value as TrainingLevel); setResult(null); }}>
@@ -114,15 +115,20 @@ export default function ExerciseAdvisor({ measurement, athleteId }: { measuremen
         </label>
         <div className="ea-actions"><button type="submit" className="button-dark" disabled={loading || !consented}>
           {loading ? 'Consulting AI…' : 'Generate workout draft ↗'}
-        </button><span>Generated text is never saved to SQLite or used to start an exercise session.</span></div>
+        </button><span>Saved drafts can be reviewed in History.</span></div>
       </form>
+      <div className="ea-output" aria-label="Workout draft">
       {error && <p className="bp-error" role="alert">{error}</p>}
+      {!result && !error && <p className="empty-state" role="status">{loading ? 'Generating workout draft…' : 'A generated workout sheet will appear here.'}</p>}
       {result && <div className="ea-result" role="status" aria-live="polite">
         <div className="ea-result-head"><strong>{result.status === 'needs_clearance' ? 'Review required before any options' : 'AI DRAFT — REVIEW REQUIRED'}</strong><span>{result.model_used ? `Model: ${result.model_used}` : 'No external AI call'}</span></div>
         <p>{result.summary}</p>
         {result.status === 'draft_for_review' && result.options.length > 0 && <>
           <div className="ea-plan-summary"><strong>Proposed weekly template</strong><span>{result.sessions_per_week} session{result.sessions_per_week === 1 ? '' : 's'} / week · Resistance exercise · Subject to professional adjustment</span></div>
-          <div className="ea-plan-scroll"><table className="ea-plan-table"><thead><tr><th>Exercise</th><th>Sets</th><th>Reps / set</th><th>Rest</th></tr></thead>
+          {result.sessions_per_week != null && <div className="ea-week" role="img" aria-label={`${result.sessions_per_week} sessions per week, days to be assigned during review`}>
+            {Array.from({ length: 7 }, (_, index) => <span key={index} className={index < result.sessions_per_week! ? 'planned' : ''} aria-hidden="true">{index < result.sessions_per_week! ? 'Session' : '·'}</span>)}
+          </div>}
+          <div className="table-scroll ea-plan-scroll"><table className="ea-plan-table"><thead><tr><th>Exercise</th><th>Sets</th><th>Reps / set</th><th>Rest</th></tr></thead>
             <tbody>{result.options.map(option => <tr key={option.exercise_id}><th scope="row">{option.name}</th><td>{option.sets}</td><td>{option.repetitions_per_set}</td><td>{option.rest_seconds}s</td></tr>)}</tbody>
           </table></div>
           <div className="ea-options">{result.options.map(option => <article className="ea-option" key={option.exercise_id}>
@@ -132,6 +138,7 @@ export default function ExerciseAdvisor({ measurement, athleteId }: { measuremen
         </>}
         <p className="ea-limit"><strong>Limitations:</strong> {result.limitations}</p><p className="ea-disclaimer">{result.disclaimer}</p>
       </div>}
+      </div></div>
     </>}
   </section>;
 }

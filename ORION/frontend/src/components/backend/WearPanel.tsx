@@ -1,60 +1,41 @@
-import { useEffect, useState } from 'react';
-import { apiRequest } from '../../services/apiClient';
+import { wearLabels } from '../../hooks/useWear';
+import type { useWear } from '../../hooks/useWear';
+import { Card, EmptyState, MetricCard, PageHeader } from '../ui/Surfaces';
+import TrendChart from '../ui/TrendChart';
 
-type Metric = { value: number | null; receivedAt: number; measuredAt?: number | null };
-type Reading = { name: string; value: number | null; received_at: number; measured_at: number | null; exercise_session_id: string | null };
-type WatchData = { configured: false } | {
-  configured: true;
-  latest: { deviceId: string; metrics: Record<string, Metric>; receivedAt: number | null; serverTime: number };
-  history: { readings: Reading[] };
-};
-const labels: Record<string, string> = {
-  batimentos_bpm: 'Heart rate (BPM)',
-  oxigenacao_percentual: 'SpO₂ (%)',
-  sleep_session_minutes: 'Observation duration (min)',
-};
-
-export default function WearPanel({ athleteId }: { athleteId: string | null }) {
-  const [data, setData] = useState<WatchData | null>(null);
-  const [error, setError] = useState(false);
-  useEffect(() => {
-    if (!athleteId) return;
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    async function poll() {
-      try {
-        const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]);
-        const response = await apiRequest<WatchData>(`/api/v1/athletes/${athleteId}/wear`, { signal, cache: 'no-store' });
-        if (!controller.signal.aborted) { setData(response); setError(false); }
-      } catch {
-        if (!controller.signal.aborted) setError(true);
-      } finally {
-        if (!controller.signal.aborted) timer = setTimeout(poll, 3000);
-      }
-    }
-    void poll();
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [athleteId]);
-  const live = !error && data?.configured && data.latest.receivedAt != null &&
-    data.latest.serverTime - data.latest.receivedAt < 30_000;
-  const lastUpdate = data?.configured ? data.latest.receivedAt : null;
-  return <section className="surface history-card">
-    <div className="surface-heading"><h2>ORION Wear</h2></div>
-    <p role="status">{!athleteId ? 'Select a crew profile in Overview.' : error ? 'Receiver unavailable. Reconnecting…' :
-      !data ? 'Checking receiver…' : !data.configured ? 'No watch configured for this crew profile.' :
-      live ? 'Receiving watch observations' : 'No recent watch observations'}</p>
-    {data?.configured && <p>Device <code>{data.latest.deviceId}</code></p>}
-    {lastUpdate != null && <p>Last receipt {new Date(lastUpdate).toLocaleString()}</p>}
-    {data?.configured && <>
-      <dl>{Object.entries(labels).map(([key, label]) => {
-        const metric = data.latest.metrics[key];
-        const recent = !error && metric && data.latest.serverTime - (metric.measuredAt ?? metric.receivedAt) < 30_000;
-        const value = metric?.value ?? null;
-        return <div key={key}><dt>{label}</dt><dd>{value === null ? 'Unavailable' : `${value}${recent ? '' : ' · last recorded'}`}</dd></div>;
-      })}</dl>
-      <h3>Recent observations</h3>
-      <ul>{data.history.readings.filter(row => row.value !== null).map((row, index) =>
-        <li key={index}>{new Date(row.measured_at ?? row.received_at).toLocaleString()} · {labels[row.name]} · {row.value}{row.exercise_session_id && <> · Session <code>{row.exercise_session_id}</code></>}</li>)}</ul>
-    </>}
-  </section>;
+export default function WearPanel({ wear, crewName }: { wear: ReturnType<typeof useWear>; crewName?: string }) {
+  const stats = [
+    ['batimentos_bpm', 'Heart rate', 'bpm', 'heart'],
+    ['oxigenacao_percentual', 'Blood oxygen', '%', 'droplet'],
+    ['sleep_session_minutes', 'Observation session', 'min', 'history'],
+  ] as const;
+  return <>
+    <PageHeader eyebrow="Connected devices" title="ORION Wear" subtitle="Samsung Galaxy Watch4 · Physiological observations"
+      action={<span role="status" className={`pill ${wear.live ? 'good' : wear.error ? 'warn' : ''}`}>{wear.status}</span>}/>
+    <div className="grid wear-stats">{stats.map(([key, label, unit, icon]) => {
+      const metric = wear.metric(key);
+      return <MetricCard key={key} label={label} value={metric.value} unit={unit} icon={icon}
+        detail={metric.value == null ? 'No reading available' : metric.recent ? 'Recent device reading' : 'Last recorded reading'}/>;
+    })}</div>
+    <div className="grid dashboard-grid">
+      <Card title="Heart rate observations">
+        <TrendChart label="Heart rate in beats per minute" empty="At least two heart rate readings are needed to show a trend."
+          points={wear.readings.flatMap(row => row.name === 'batimentos_bpm' && row.value != null ? [{ time: row.measured_at ?? row.received_at, value: row.value }] : [])}/>
+      </Card>
+      <Card title="Device connection">
+        <dl className="service-list">
+          <div><dt>Device</dt><dd>{wear.latest?.deviceId ?? 'Unlinked'}</dd></div>
+          <div><dt>Connection</dt><dd>{wear.status}</dd></div>
+          <div><dt>Crew association</dt><dd>{wear.latest ? crewName : 'Unavailable'}</dd></div>
+          <div><dt>Last receipt</dt><dd>{wear.lastUpdate == null ? 'Unavailable' : new Date(wear.lastUpdate).toLocaleString('en-US')}</dd></div>
+        </dl>
+      </Card>
+    </div>
+    <Card title="Recent observations">
+      {wear.readings.length ? <div className="table-scroll"><table><thead><tr><th scope="col">Measurement</th><th scope="col">Value</th><th scope="col">Time</th><th scope="col">Exercise session</th></tr></thead>
+        <tbody>{[...wear.readings].sort((a, b) => (b.measured_at ?? b.received_at) - (a.measured_at ?? a.received_at)).map((row, index) =>
+          <tr key={index}><td>{wearLabels[row.name] ?? row.name}</td><td>{row.value}</td><td>{new Date(row.measured_at ?? row.received_at).toLocaleString('en-US')}</td><td>{row.exercise_session_id ?? '—'}</td></tr>)}</tbody>
+      </table></div> : <EmptyState>No observations are available for this crew member.</EmptyState>}
+    </Card>
+  </>;
 }

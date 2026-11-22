@@ -9,8 +9,13 @@ const messageOf = (error: unknown) => error instanceof Error ? error.message : '
 export function useBackend() {
   const [apiState, setApiState] = useState<ApiState>('checking');
   const [athlete, setAthlete] = useState<Athlete | null>(null);
-  const [sessionData, setSessionData] = useState<{ athleteId: string; records: ExerciseSession[] } | null>(null);
-  const sessions = sessionData && sessionData.athleteId === athlete?.id ? sessionData.records : [];
+  const [knownCrew, setKnownCrew] = useState<Athlete[]>([]);
+  const rememberCrew = (profile: Athlete) => setKnownCrew(crew => [...crew.filter(member => member.id !== profile.id), profile]);
+  const [sessionsByCrew, setSessionsByCrew] = useState<Record<string, ExerciseSession[]>>({});
+  const sessions = athlete ? sessionsByCrew[athlete.id] ?? [] : [];
+  const storeSessions = useCallback((id: string, records: ExerciseSession[]) => {
+    setSessionsByCrew(previous => ({ ...previous, [id]: records }));
+  }, []);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
 
@@ -29,10 +34,10 @@ export function useBackend() {
 
   const reloadSessions = useCallback(async (id?: string) => {
     const key = id || athlete?.id;
-    if (!key) { setSessionData(null); return; }
-    try { setSessionData({ athleteId: key, records: await backendApi.getSessions(key) }); setError(''); }
+    if (!key) return;
+    try { storeSessions(key, await backendApi.getSessions(key)); setError(''); }
     catch (e) { setError(messageOf(e)); }
-  }, [athlete?.id]);
+  }, [athlete?.id, storeSessions]);
 
   useEffect(() => {
     let active = true;
@@ -56,18 +61,20 @@ export function useBackend() {
     backendApi.getAthlete(saved).then(async profile => {
       const records = await backendApi.getSessions(profile.id);
       if (!alive) return;
-      setSessionData({ athleteId: profile.id, records });
+      storeSessions(profile.id, records);
+      rememberCrew(profile);
       setAthlete(profile);
     }).catch(() => { if (alive) window.sessionStorage.removeItem(KEY); });
     return () => { alive = false; };
-  }, [apiState, athlete]);
+  }, [apiState, athlete, storeSessions]);
 
   const openProfile = async (id: string) => {
     setWorking(true); setError('');
     try {
       const profile = await backendApi.getAthlete(id.trim());
       const records = await backendApi.getSessions(profile.id);
-      setAthlete(profile); setSessionData({ athleteId: profile.id, records });
+      rememberCrew(profile);
+      setAthlete(profile); storeSessions(profile.id, records);
       window.sessionStorage.setItem(KEY, profile.id);
     } catch (e) { setError(messageOf(e)); } finally { setWorking(false); }
   };
@@ -75,13 +82,14 @@ export function useBackend() {
     setWorking(true); setError('');
     try {
       const profile = await backendApi.createAthlete(pseudonym.trim());
-      setAthlete(profile); setSessionData(null);
+      rememberCrew(profile);
+      setAthlete(profile);
       window.sessionStorage.setItem(KEY, profile.id);
     } catch (e) { setError(messageOf(e)); } finally { setWorking(false); }
   };
   const clearProfile = () => {
     window.sessionStorage.removeItem(KEY);
-    setAthlete(null); setSessionData(null); setError('');
+    setAthlete(null); setError('');
   };
-  return { apiState, athlete, sessions, working, error, checkConnection, reloadSessions, openProfile, createProfile, clearProfile };
+  return { apiState, athlete, knownCrew, sessions, working, error, checkConnection, reloadSessions, openProfile, createProfile, clearProfile };
 }

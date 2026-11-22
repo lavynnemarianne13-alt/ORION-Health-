@@ -4,6 +4,8 @@ import type { Athlete } from '../../types/backend';
 import type { BodyMeasurement } from '../../types/anthropometry';
 import { calculateBmi, calculateWaistToHeight, formatNumber } from '../../utils/anthropometry';
 import { cmToIn, inToCm, kgToLb, lbToKg, formatUsHeight, formatUsWeight } from '../../utils/imperial';
+import { initials } from '../../utils/initials';
+import TrendChart from '../ui/TrendChart';
 import './BodyProfile.css';
 
 type CircumferenceKey = 'waist' | 'hip' | 'rightUpperArm' | 'leftUpperArm' | 'rightForearm' | 'leftForearm' | 'rightThigh' | 'leftThigh' | 'rightCalf' | 'leftCalf';
@@ -64,6 +66,27 @@ function createMeasurement(form: FormValues, athleteId: string): BodyMeasurement
     bodyWaterPercent: numeric('bodyWaterPercent'), biaDevice: form.biaDevice.trim() || null
   };
 }
+function formFromMeasurement(record: BodyMeasurement): FormValues {
+  const inches = Number(cmToIn(record.heightCm).toFixed(9));
+  const feet = Math.floor(inches / 12);
+  const optional = (value: number | null) => value == null ? '' : String(value);
+  const form = {
+    ...emptyForm,
+    ageYears: optional(record.ageYears),
+    heightFeet: String(feet),
+    heightInches: optional(inches - feet * 12),
+    weightLb: optional(kgToLb(record.weightKg)),
+    bodyFatPercent: optional(record.bodyFatPercent),
+    skeletalMuscleMassLb: optional(record.skeletalMuscleMassKg == null ? null : kgToLb(record.skeletalMuscleMassKg)),
+    bodyWaterPercent: optional(record.bodyWaterPercent),
+    biaDevice: record.biaDevice ?? '',
+  };
+  for (const { key } of optionalCircumferences) {
+    const value = record[`${key}Cm`];
+    form[key] = optional(value == null ? null : cmToIn(value));
+  }
+  return form;
+}
 function NumericInput({ field, label, value, onChange, required = false, unit = 'in' }: {
   field: NumberKey; label: string; value: string; required?: boolean; unit?: string;
   onChange: (field: NumberKey, value: string) => void;
@@ -71,22 +94,8 @@ function NumericInput({ field, label, value, onChange, required = false, unit = 
   const [min, max] = limits[field];
   return <label className="bp-field"><span>{label} {required && <b aria-label="required">*</b>}</span>
     <div className="bp-input-wrap"><input type="number" inputMode="decimal" min={min} max={max}
-      step={field === 'ageYears' || field === 'heightFeet' ? 1 : 0.1} value={value}
+      step={field === 'ageYears' || field === 'heightFeet' ? 1 : 'any'} value={value}
       required={required} placeholder="—" onChange={e => onChange(field, e.target.value)}/><em>{unit}</em></div></label>;
-}
-function WeightTrend({ records }: { records: BodyMeasurement[] }) {
-  const chronology = records.slice(0, 8).reverse();
-  if (chronology.length < 2) return <p className="bp-placeholder">Add another measurement to view an individual weight trend.</p>;
-  const weights = chronology.map(record => kgToLb(record.weightKg));
-  const low = Math.min(...weights) - 2;
-  const high = Math.max(...weights) + 2;
-  const spread = Math.max(1, high - low);
-  const points = weights.map((value, i) => `${20 + i * 52},${110 - ((value - low) / spread) * 85}`).join(' ');
-  return <div className="bp-trend"><svg viewBox="0 0 410 125" role="img" aria-label={`Weight trend from ${weights[0].toFixed(1)} to ${weights.at(-1)!.toFixed(1)} pounds`} preserveAspectRatio="xMidYMid meet">
-    {[25, 65, 105].map(y => <line key={y} x1="15" x2="390" y1={y} y2={y} stroke="#dae1e9" strokeDasharray="4 5"/>)}
-    <polyline points={points} fill="none" stroke="#375978" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-    {weights.map((weight, i) => <circle key={i} cx={20 + i * 52} cy={110 - ((weight - low) / spread) * 85} r="4" fill="#375978"><title>{weight.toFixed(1)} lb</title></circle>)}
-  </svg><div className="bp-trend-caption"><span>Oldest of last {chronology.length}</span><span>Most recent</span></div></div>;
 }
 export default function BodyProfile({ athlete, records, onAdd, onRemove, onSelectCrew }: {
   athlete: Athlete | null; records: BodyMeasurement[];
@@ -94,6 +103,8 @@ export default function BodyProfile({ athlete, records, onAdd, onRemove, onSelec
   onRemove: (id: string) => void; onSelectCrew: () => void;
 }) {
   const [form, setForm] = useState<FormValues>(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showCircs, setShowCircs] = useState(true);
@@ -122,20 +133,51 @@ export default function BodyProfile({ athlete, records, onAdd, onRemove, onSelec
     const hasBia = ['bodyFatPercent', 'skeletalMuscleMassLb', 'bodyWaterPercent'].some(key => form[key as NumberKey].trim() !== '');
     if (hasBia && !form.biaDevice.trim()) { setError('Name the actual device or report used for any external BIA values.'); return; }
     if (form.biaDevice.length > 120) { setError('Device/source name must be 120 characters or fewer.'); return; }
-    if (!await onAdd(createMeasurement(form, athlete.id))) return;
-    setForm(emptyForm); setSuccess('Measurement saved for the selected crew member.');
+    setSaving(true);
+    try {
+      if (await onAdd(createMeasurement(form, athlete.id))) {
+        setForm(emptyForm);
+        setCopied(false);
+        setSuccess('Measurement saved for the selected crew member.');
+      }
+    } finally { setSaving(false); }
   };
   return <div className="body-profile">
-    <section className="surface bp-intro"><div><span className="section-number">PERSONAL ANTHROPOMETRY</span><h2>One person. One baseline.</h2><p>Enter measurements using U.S. customary units (ft, in, lb). ORION keeps metric values internally for accurate BMI calculations and the existing API.</p></div><div className="bp-intro-seal"><strong>ORION</strong><span>BODY PROFILE</span></div></section>
-    {!athlete ? <section className="surface bp-empty"><h2>No crew profile selected</h2><p>Register or open a crew member in Overview before recording personal measurements. This prevents mixing measurements between people.</p><button className="button-dark" type="button" onClick={onSelectCrew}>Open crew profiles ↗</button></section> : <>
-      <div className="bp-crew-strip"><span className="bp-crew-dot"/><span>ACTIVE CREW MEMBER</span><strong>{athlete.pseudonym}</strong><code title={athlete.id}>{athlete.id}</code><span className="bp-memory-tag">LOCAL SQLITE</span></div>
-      <div className="bp-metric-grid">
-        <article className="surface bp-stat"><span>HEIGHT</span><strong>{formatUsHeight(latest?.heightCm)}</strong><p>Entered manually</p></article>
-        <article className="surface bp-stat"><span>BODY WEIGHT</span><strong>{formatUsWeight(latest?.weightKg)}</strong><p>Entered manually</p></article>
-        <article className="surface bp-stat"><span>BODY MASS INDEX</span><strong>{formatNumber(bmi)} <small>kg/m²</small></strong><p>Calculated from height and weight</p></article>
-        <article className="surface bp-stat"><span>WAIST / HEIGHT</span><strong>{formatNumber(waistRatio, 2)}</strong><p>Shown only if waist is entered</p></article>
-      </div>
-      <div className="bp-columns"><section className="surface bp-form-card"><div className="surface-heading"><div><span className="section-number">NEW OBSERVATION</span><h2>Body measurements</h2></div><span className="bp-subtle-tag">MANUAL ENTRY · US UNITS</span></div>
+    {!athlete ? <section className="surface bp-empty"><h2>No crew profile selected</h2><p>Register or open a crew member before recording measurements.</p><button className="button-dark" type="button" onClick={onSelectCrew}>Manage crew →</button></section> : <>
+      <div className="bp-columns">
+        <aside className="bp-side-stack">
+          <section className="surface bp-profile">
+            <span className="avatar bp-avatar" aria-hidden="true">{initials(athlete.pseudonym)}</span>
+            <h2>{athlete.pseudonym}</h2>
+            <dl className="bp-meta">
+              <div><dt>Crew ID</dt><dd><code>{athlete.id}</code></dd></div>
+              <div><dt>Age</dt><dd>{latest?.ageYears == null ? '—' : `${latest.ageYears} years`}</dd></div>
+              <div><dt>Height</dt><dd>{formatUsHeight(latest?.heightCm)}</dd></div>
+              <div><dt>Body weight</dt><dd>{formatUsWeight(latest?.weightKg)}</dd></div>
+              <div><dt>Body mass index</dt><dd>{bmi == null ? '—' : `${formatNumber(bmi)} kg/m²`}</dd></div>
+              <div><dt>Waist / height</dt><dd>{formatNumber(waistRatio, 2)}</dd></div>
+            </dl>
+          </section>
+          <section className="surface bp-history-card"><div className="surface-heading"><h2>Measurement history</h2><span className="pill">{records.length} records</span></div>
+            <TrendChart label="Body weight in pounds" empty="Add another measurement to see a weight trend."
+              points={records.map(record => ({ time: Date.parse(record.recordedAt), value: kgToLb(record.weightKg) }))}/>
+            <div className="bp-history-list">{records.length === 0 ? <p className="bp-placeholder">No measurements for this crew member.</p> : records.map(item => <article key={item.id} className="bp-record">
+              <div><strong>{formatUsWeight(item.weightKg)} · {formatUsHeight(item.heightCm)}</strong>
+              <small>{new Date(item.recordedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })} · BMI {formatNumber(calculateBmi(item.heightCm, item.weightKg))}</small>
+              {item.biaDevice && <small>External BIA report: {item.biaDevice}</small>}</div>
+              <button type="button" onClick={() => { if (window.confirm('Remove this measurement?')) onRemove(item.id); }}
+                aria-label={`Remove record from ${new Date(item.recordedAt).toLocaleDateString('en-US')}`}>Remove</button>
+            </article>)}</div>
+          </section>
+        </aside>
+        <section className="surface bp-form-card"><div className="surface-heading"><h2>Body measurements</h2><span className="bp-subtle-tag">MANUAL ENTRY · US UNITS</span></div>
+        {latest && <button type="button" className="bp-copy" disabled={saving} onClick={() => {
+          setForm(formFromMeasurement(latest));
+          setShowCircs(true);
+          setShowBia(!!latest.biaDevice);
+          setCopied(true); setError(''); setSuccess('');
+        }}>Use latest measurement as starting point</button>}
+        {copied && <p className="muted-note">Saving adds a new observation to the measurement history.</p>}
         <form onSubmit={submit}><h3>Essential measurements</h3><div className="bp-form-grid">
           <div className="bp-height-group" role="group" aria-label="Height"><span className="bp-height-label">Height <b aria-label="required">*</b></span><div className="bp-height-pair">
             <NumericInput field="heightFeet" label="Feet" unit="ft" value={form.heightFeet} onChange={setField} required/>
@@ -153,12 +195,11 @@ export default function BodyProfile({ athlete, records, onAdd, onRemove, onSelec
           <NumericInput field="bodyWaterPercent" label="Total body water" unit="%" value={form.bodyWaterPercent} onChange={setField}/>
           <label className="bp-field"><span>Measurement device / report</span><div className="bp-input-wrap"><input type="text" value={form.biaDevice} maxLength={120} placeholder="Device or report name" onChange={e => setForm(prev => ({ ...prev, biaDevice: e.target.value }))}/></div></label>
         </div></div>}
-        <div className="bp-form-actions"><button type="submit" className="button-dark">Save local measurement</button><span>Nothing sent to FastAPI</span></div>
+        <div className="bp-form-actions"><button type="submit" className="button-dark" disabled={saving}>{saving ? 'Saving…' : 'Save measurement'}</button></div>
         {error && <p className="bp-error" role="alert">{error}</p>}{success && <p className="bp-success" role="status">{success}</p>}
         </form>
-      </section><aside className="bp-side-stack"><section className="surface bp-history-card"><div className="surface-heading"><div><span className="section-number">INDIVIDUAL BASELINE</span><h2>Measurement history</h2></div><span className="bp-subtle-tag">{records.length} RECORD(S)</span></div><WeightTrend records={records}/>
-        <div className="bp-history-list">{records.length === 0 ? <p className="bp-placeholder">No personal measurements have been entered for this crew member.</p> : records.map(item => <article key={item.id} className="bp-record"><div><strong>{formatUsWeight(item.weightKg)} <span>·</span> {formatUsHeight(item.heightCm)}</strong><small>{new Date(item.recordedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })} · BMI {formatNumber(calculateBmi(item.heightCm, item.weightKg))}</small>{item.biaDevice && <small>External BIA report: {item.biaDevice}</small>}</div><button type="button" onClick={() => { if (window.confirm('Remove this local measurement?')) onRemove(item.id); }} aria-label={`Remove record from ${new Date(item.recordedAt).toLocaleDateString('en-US')}`}>Remove</button></article>)}</div>
-      </section><section className="surface bp-science-card"><span className="section-number">MEASUREMENT BOUNDARIES</span><h2>Not a bioimpedance examination.</h2><p>BMI and waist-to-height ratio are mathematical indicators, not diagnoses. Body fat, muscle mass, water compartments and individual identity cannot be determined reliably from a webcam or MediaPipe. ORION does not provide a medical classification.</p><p>Baseline comparisons are meaningful only with comparable repeated measurements from the same person.</p><p className="bp-privacy"><strong>Privacy:</strong> Anthropometry is saved locally in SQLite under the selected crew profile.</p></section></aside></div>
+        <p className="clinical-note">BMI and waist-to-height ratio describe the recorded measurements. Body composition values come from external bioimpedance reports.</p>
+      </section></div>
     </>}
   </div>;
 }

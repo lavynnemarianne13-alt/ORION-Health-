@@ -29,9 +29,9 @@ Abra [http://127.0.0.1:5173/](http://127.0.0.1:5173/). O FastAPI usa a porta 800
 ### Primeiro acesso
 
 1. Em **Overview**, digite um pseudônimo em **Register a pseudonymous crew member** e clique em **Create profile**. Copie o **Profile ID**. Para voltar a esse perfil, cole o identificador no campo de busca e clique em **Find profile**.
-2. Em **Body Profile**, preencha altura e peso. Para um ensaio com dados fictícios, use 5 ft, 10 in e 165 lb. Circunferências em polegadas são opcionais. Clique em **Save local measurement** e confira o IMC e a entrada no histórico. O SQLite armazena as medidas em kg e cm.
+2. Em **Body Profile**, preencha altura e peso. Para um ensaio com dados fictícios, use 5 ft, 10 in e 165 lb. Circunferências em polegadas são opcionais. Clique em **Save measurement** e confira o IMC e a entrada no histórico. O SQLite armazena as medidas em kg e cm.
 3. Em **Body Atlas**, alterne **Front** e **Back** e selecione uma região. Para ver uma medida vinculada, salve primeiro a circunferência da região correspondente em **Body Profile**.
-4. Em **History**, confira as medidas, fichas, sessões e leituras do perfil ativo. Para trocar de astronauta, volte a **Overview** e use **Change profile**.
+4. Em **History**, confira as medidas, fichas, sessões e leituras do perfil ativo. Use o seletor no cabeçalho para alternar entre perfis já abertos na sessão. Para abrir outro UUID ou criar um perfil, escolha **Manage crew…** e clique em **Change profile** se houver um perfil ativo.
 
 ### Gerar e revisar uma ficha
 

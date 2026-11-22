@@ -49,7 +49,7 @@ export function clearPoseOverlay(canvas: HTMLCanvasElement | null) {
   if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-export function drawPoseOverlay(canvas: HTMLCanvasElement, video: HTMLVideoElement, points: PoseLandmark[], color = '#71d7ff', detection?: PoseDetection | null) {
+export function drawPoseOverlay(canvas: HTMLCanvasElement, video: HTMLVideoElement, points: PoseLandmark[], color = '#d0ff57', detection?: PoseDetection | null) {
   const ctx = canvas.getContext('2d');
   if (!ctx || !video.videoWidth || !video.videoHeight) return;
   const ratio = window.devicePixelRatio || 1;
